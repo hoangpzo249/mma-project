@@ -1,0 +1,35 @@
+{
+  "songs": [
+    {
+      "id": 1,
+      "title": "Song name",
+      "artist": "Artist name",
+      "audioUrl": "https://link-mp3",
+      "cover": "https://image-url",
+      "duration": 210,
+      "source": "soundcloud"
+    }
+  ],
+  "playlists": [
+    {
+      "id": 1,
+      "name": "My Playlist",
+      "userId": 1,
+      "songs": [1, 2]
+    }
+  ],
+  "users": [
+    {
+      "id": 1,
+      "username": "user1",
+      "password": "123456"
+    }
+  ],
+  "favorites": [
+    {
+      "id": 1,
+      "userId": 1,
+      "songId": 2
+    }
+  ]
+}
