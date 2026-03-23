@@ -1,18 +1,27 @@
-import { Tabs } from 'expo-router';
+﻿import { Tabs } from 'expo-router';
 import React from 'react';
-
+import { Ionicons } from '@expo/vector-icons';
 import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+        tabBarActiveTintColor: '#0ea5e9',
+        tabBarInactiveTintColor: '#64748b',
+        tabBarStyle: {
+          backgroundColor: '#0f172a',
+          borderTopColor: '#1e293b',
+          borderTopWidth: 1,
+          minHeight: 70,
+          paddingBottom: 10,
+          paddingTop: 5,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '500',
+          paddingBottom: 10,
+        },
         headerShown: false,
         tabBarButton: HapticTab,
       }}>
@@ -20,14 +29,21 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarIcon: ({ color }) => <Ionicons name="home" size={24} color={color} />,
         }}
       />
       <Tabs.Screen
         name="explore"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Manga List',
+          tabBarIcon: ({ color }) => <Ionicons name="list" size={24} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="history"
+        options={{
+          title: 'History',
+          tabBarIcon: ({ color }) => <Ionicons name="time" size={24} color={color} />,
         }}
       />
     </Tabs>

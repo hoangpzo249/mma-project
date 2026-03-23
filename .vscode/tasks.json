@@ -1,0 +1,17 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "cat files",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-c",
+				"\"cat mma-project-be/models/User.js; cat mma-project-be/models/Chapter.js\""
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		}
+	]
+}

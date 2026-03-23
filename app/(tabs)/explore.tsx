@@ -1,112 +1,194 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+﻿import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity, Image, ActivityIndicator, SafeAreaView, StatusBar, Dimensions } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { fetchStories, searchStories } from '@/services/api';
 
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
+const { width } = Dimensions.get('window');
+const numColumns = 2; // 2 items per row
+const itemWidth = (width - 40 - (numColumns - 1) * 15) / numColumns;
 
-export default function TabTwoScreen() {
+export default function ExploreScreen() {
+  const [stories, setStories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'A-Z' | 'views'>('views');
+
+  // Lazy loading states
+  const [displayedStories, setDisplayedStories] = useState<any[]>([]);
+  const [page, setPage] = useState(1);
+  const ITEMS_PER_PAGE = 20;
+
+  const router = useRouter();
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        let data = [];
+        if (debouncedQuery.trim()) {
+          data = await searchStories(debouncedQuery);
+        } else {
+          data = await fetchStories();
+        }
+        setStories(data);
+        setPage(1); // Reset page on new data
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [debouncedQuery]);
+
+  useEffect(() => {
+    const sortedStories = [...stories].sort((a, b) => {
+      if (sortBy === 'A-Z') {
+        return (a.title || '').localeCompare(b.title || '');
+      } else {
+        return (b.views || 0) - (a.views || 0);
+      }
+    });
+
+    setDisplayedStories(sortedStories.slice(0, page * ITEMS_PER_PAGE));
+  }, [stories, sortBy, page]);
+
+  const loadMoreData = () => {
+    if (displayedStories.length < stories.length) {
+      setPage(prev => prev + 1);
+    }
+  };
+
+  const renderItem = ({ item }: { item: any }) => (
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => item._id && router.push(/story/ + item._id as any)}
+    >
+      {item.thumbnail ? (
+        <Image source={{ uri: item.thumbnail }} style={styles.thumbnail} />
+      ) : (
+        <View style={styles.imagePlaceholder} />
+      )}
+      <Text style={styles.title} numberOfLines={2}>
+        {item.title}
+      </Text>
+      {item.latestChapter && (
+        <TouchableOpacity
+          onPress={(e) => {
+             e.stopPropagation();
+             router.push(/chapter/ + item.latestChapter._id as any);
+          }}
+        >
+          <Text style={styles.latestChapterText} numberOfLines={1}>
+            Latest: Chapter {item.latestChapter.chapterNumber}
+          </Text>
+        </TouchableOpacity>
+      )}
+    </TouchableOpacity>
+  );
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
+
+      {/* Search Header */}
+      <View style={styles.header}>
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color="#94a3b8" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search manga..."
+            placeholderTextColor="#94a3b8"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={20} color="#94a3b8" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {/* Filter / Sort Row */}
+      <View style={styles.filterRow}>
+        <Text style={styles.resultCount}>
+          <Text style={{ fontWeight: 'bold', color: 'white' }}>{stories.length}</Text> mangas
+        </Text>
+        <View style={styles.sortContainer}>
+          <TouchableOpacity
+            style={[styles.sortBtn, sortBy === 'views' && styles.activeSortBtn]}
+            onPress={() => setSortBy('views')}
+          >
+            <Text style={[styles.sortText, sortBy === 'views' && styles.activeSortText]}>Popular</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.sortBtn, sortBy === 'A-Z' && styles.activeSortBtn]}
+            onPress={() => setSortBy('A-Z')}
+          >
+            <Text style={[styles.sortText, sortBy === 'A-Z' && styles.activeSortText]}>A-Z</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Grid List */}
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#0ea5e9" />
+        </View>
+      ) : (
+        <FlatList
+          data={displayedStories}
+          keyExtractor={(item, index) => item._id || index.toString()}
+          renderItem={renderItem}
+          numColumns={numColumns}
+          contentContainerStyle={styles.listContainer}
+          columnWrapperStyle={styles.columnWrapper}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <Text style={styles.emptyText}>No mangas found.</Text>
+          }
+          onEndReached={loadMoreData}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+             displayedStories.length < stories.length ? (
+               <ActivityIndicator size="small" color="#0ea5e9" style={{ marginVertical: 20 }} />
+             ) : null
+          }
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
-        />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+      )}
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
-  },
-  titleContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
+  safeArea: { flex: 1, backgroundColor: '#0b162c' },
+  header: { paddingHorizontal: 20, paddingTop: 15, paddingBottom: 10, backgroundColor: '#0f172a' },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1e293b', borderRadius: 25, paddingHorizontal: 15, height: 45 },
+  searchInput: { flex: 1, color: 'white', fontSize: 15, marginLeft: 10 },
+  filterRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15 },
+  resultCount: { color: '#94a3b8', fontSize: 14 },
+  sortContainer: { flexDirection: 'row', backgroundColor: '#1e293b', borderRadius: 15, overflow: 'hidden' },
+  sortBtn: { paddingHorizontal: 15, paddingVertical: 8 },
+  activeSortBtn: { backgroundColor: '#0ea5e9' },
+  sortText: { color: '#94a3b8', fontSize: 13, fontWeight: 'bold' },
+  activeSortText: { color: 'white' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  listContainer: { paddingHorizontal: 20, paddingBottom: 40 },
+  columnWrapper: { justifyContent: 'space-between', marginBottom: 15 },
+  card: { width: itemWidth },
+  thumbnail: { width: itemWidth, height: itemWidth * 1.4, borderRadius: 8, marginBottom: 8 },
+  imagePlaceholder: { width: itemWidth, height: itemWidth * 1.4, backgroundColor: '#475569', borderRadius: 8, marginBottom: 8 },
+  title: { color: '#f8fafc', fontSize: 14, fontWeight: '600' },
+  latestChapterText: { color: '#3b82f6', fontSize: 12, marginTop: 4, fontWeight: '500' },
+  emptyText: { color: '#64748b', textAlign: 'center', marginTop: 50, fontSize: 15 }
 });
